@@ -2,12 +2,12 @@ import unittest
 
 from parameterized import parameterized
 
-from src.regex_classifier import attempt_to_classify, attempt_to_construct_firewall_change, \
+from src.parsing.regex_classifier import attempt_to_classify, attempt_to_construct_firewall_change, \
     attempt_to_construct_devtool_install, attempt_to_construct_cloud_access, attempt_to_construct_permissions_change, \
     attempt_to_construct_data_export, attempt_to_construct_vendor_approval, attempt_to_construct_network_access, \
     construct_according_to_classification
-from src.constants import RequestTypes
-from src.requests import *
+from src.parsing.constants import RequestTypes
+from src.parsing.requests import *
 from test.example_request_texts import FULL_FIREWALL_CHANGE_REQUEST, FULL_DEVTOOL_INSTALL_REQUEST, \
     FULL_PERMISSION_CHANGE_REQUEST, FULL_DATA_EXPORT_REQUEST, FULL_CLOUD_ACCESS_REQUEST, FULL_NETWORK_ACCESS_REQUEST, \
     FULL_VENDOR_APPROVAL_REQUEST

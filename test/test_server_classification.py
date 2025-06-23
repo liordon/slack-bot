@@ -1,11 +1,6 @@
 import unittest
 from src.bot_server import classify_command
-from src.constants import  RequestTypes
-from src.requests import *
-from test.example_request_texts import FULL_FIREWALL_CHANGE_REQUEST, FULL_DEVTOOL_INSTALL_REQUEST, \
-    FULL_PERMISSION_CHANGE_REQUEST, FULL_DATA_EXPORT_REQUEST, FULL_CLOUD_ACCESS_REQUEST, FULL_NETWORK_ACCESS_REQUEST, \
-    FULL_VENDOR_APPROVAL_REQUEST
-
+from src.parsing.requests import *
 
 basic_fake_payload = {
     'token': '6gXYiea8a5GXPFnyHHjdqnYi',
