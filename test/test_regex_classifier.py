@@ -1,43 +1,50 @@
 import unittest
+
+from parameterized import parameterized
+
 from src.regex_classifier import attempt_to_classify, attempt_to_construct_firewall_change, \
     attempt_to_construct_devtool_install, attempt_to_construct_cloud_access, attempt_to_construct_permissions_change, \
-    attempt_to_construct_data_export, attempt_to_construct_vendor_approval, attempt_to_construct_network_access
+    attempt_to_construct_data_export, attempt_to_construct_vendor_approval, attempt_to_construct_network_access, \
+    construct_according_to_classification
 from src.constants import RequestTypes
 from src.requests import *
+from test.example_request_texts import FULL_FIREWALL_CHANGE_REQUEST, FULL_DEVTOOL_INSTALL_REQUEST, \
+    FULL_PERMISSION_CHANGE_REQUEST, FULL_DATA_EXPORT_REQUEST, FULL_CLOUD_ACCESS_REQUEST, FULL_NETWORK_ACCESS_REQUEST, \
+    FULL_VENDOR_APPROVAL_REQUEST
 
+
+def _generate_name_for_type_test(testcase_func, param_num, param):
+    retval = parameterized.to_safe_name(f"{testcase_func.__name__}_{param_num}_{param.args[1]}")
+    return parameterized.to_safe_name(f"{testcase_func.__name__}_{param_num}_{param.args[1]}")
 
 class BasicClassificationTest(unittest.TestCase):
     def test_given_empty_request_then_result_is_unclassified(self):
         classification = attempt_to_classify('')
         self.assertEquals(RequestTypes.UNKNOWN, classification)
 
-    def test_given_firewall_keyword_in_request_then_result_is_firewall_change(self):
-        classification = attempt_to_classify(FULL_FIREWALL_CHANGE_REQUEST)
-        self.assertEquals(RequestTypes.FIREWALL_CHANGE, classification)
+    @parameterized.expand([
+            (FULL_CLOUD_ACCESS_REQUEST, RequestTypes.CLOUD_ACCESS),
+            (FULL_DATA_EXPORT_REQUEST, RequestTypes.DATA_EXPORT),
+            (FULL_DEVTOOL_INSTALL_REQUEST, RequestTypes.DEVTOOL_INSTALL),
+            (FULL_FIREWALL_CHANGE_REQUEST, RequestTypes.FIREWALL_CHANGE),
+            (FULL_NETWORK_ACCESS_REQUEST, RequestTypes.NETWORK_ACCESS),
+            (FULL_PERMISSION_CHANGE_REQUEST, RequestTypes.PERMISSION_CHANGE),
+            (FULL_VENDOR_APPROVAL_REQUEST, RequestTypes.VENDOR_APPROVAL),
+        ], name_func=_generate_name_for_type_test)
+    def test_given_full_message_then_the_appropriate_request_is_constructed(self, classification, type_name):
+        self.assertEquals(type_name, attempt_to_classify(classification))
 
-    def test_given_install_keyword_in_request_then_result_is_devtool_install(self):
-        classification = attempt_to_classify(FULL_DEVTOOL_INSTALL_REQUEST)
-        self.assertEquals(RequestTypes.DEVTOOL_INSTALL, classification)
-
-    def test_given_role_keyword_in_request_then_result_is_permission_change(self):
-        classification = attempt_to_classify(FULL_PERMISSION_CHANGE_REQUEST)
-        self.assertEquals(RequestTypes.PERMISSION_CHANGE, classification)
-
-    def test_given_export_keyword_in_request_then_result_is_data_export(self):
-        classification = attempt_to_classify(FULL_DATA_EXPORT_REQUEST)
-        self.assertEquals(RequestTypes.DATA_EXPORT, classification)
-
-    def test_given_access_keyword_in_request_then_result_is_cloud_access(self):
-        classification = attempt_to_classify(FULL_CLOUD_ACCESS_REQUEST)
-        self.assertEquals(RequestTypes.CLOUD_ACCESS, classification)
-
-    def test_given_allow_traffic_keywords_in_request_then_result_is_network_access(self):
-        classification = attempt_to_classify(FULL_NETWORK_ACCESS_REQUEST)
-        self.assertEquals(RequestTypes.NETWORK_ACCESS, classification)
-
-    def test_given_provide_keyword_in_request_then_result_is_vendor_approval(self):
-        classification = attempt_to_classify(FULL_VENDOR_APPROVAL_REQUEST)
-        self.assertEquals(RequestTypes.VENDOR_APPROVAL, classification)
+    @parameterized.expand([
+            (CloudResourceAccessRequest, RequestTypes.CLOUD_ACCESS),
+            (DataExportRequest, RequestTypes.DATA_EXPORT),
+            (DevToolInstallRequest, RequestTypes.DEVTOOL_INSTALL),
+            (FireWallChangeRequest, RequestTypes.FIREWALL_CHANGE),
+            (NetworkAccessRequest, RequestTypes.NETWORK_ACCESS),
+            (PermissionsChangeRequest, RequestTypes.PERMISSION_CHANGE),
+            (VendorApprovalRequest, RequestTypes.VENDOR_APPROVAL),
+        ], name_func=_generate_name_for_type_test)
+    def test_given_classification_then_the_appropriate_request_is_constructed(self, request_type, type_name):
+        self.assertIsInstance(construct_according_to_classification(type_name, ''), request_type)
 
 
 class CloudAccessTest(unittest.TestCase):
@@ -219,21 +226,6 @@ class VendorApprovalTest(unittest.TestCase):
         self.assertFalse(user_req.security_questionnaire_completed)
         self.assertIsNotNone(user_req.legal_review_completed)
 
-
-FULL_FIREWALL_CHANGE_REQUEST = '''Requesting temporary firewall rule to allow outbound SSH from bastion to vendor IP 196.181.12.201 on port 22.
-This is for scheduled support session during the upcoming patch window.'''
-FULL_DEVTOOL_INSTALL_REQUEST = '''Requesting installation of extension 'hold' from official VSCode marketplace.
-Tool will be used by dev team for shared debugging and code review sessions.'''
-FULL_PERMISSION_CHANGE_REQUEST = '''Requesting AdministratorAccess role for AWS account acme-prod to handle production incident.
-Access needed for 3 hours. Related Jira ticket: INFRA-2171.'''
-FULL_DATA_EXPORT_REQUEST = '''Request to export anonymized user event data (~43GB) for ML model training.
-Data to be exported to secure S3 bucket acme-stage-medical. No direct identifiers present.'''
-FULL_CLOUD_ACCESS_REQUEST = '''Access requested for S3 bucket acme-stage-radio to troubleshoot log ingestion failures.
-Data classification: Internal. No customer PII involved.'''
-FULL_NETWORK_ACCESS_REQUEST = '''Request to allow MySQL traffic from internal subnet 10.7.69.0/24 to RDS cluster rds-acme-dev.
-This is needed for data sync during migration. Approved change window is 02:00–04:00 UTC.'''
-FULL_VENDOR_APPROVAL_REQUEST = '''Flores, Garcia and Abbott provides marketing analytics services.
-They completed ACME's security questionnaire with a passing score and have a valid SOC 2 Type II report. No PII involved.'''
 
 if __name__ == '__main__':
     unittest.main()

@@ -2,6 +2,10 @@ import unittest
 from src.bot_server import classify_command
 from src.constants import  RequestTypes
 from src.requests import *
+from test.example_request_texts import FULL_FIREWALL_CHANGE_REQUEST, FULL_DEVTOOL_INSTALL_REQUEST, \
+    FULL_PERMISSION_CHANGE_REQUEST, FULL_DATA_EXPORT_REQUEST, FULL_CLOUD_ACCESS_REQUEST, FULL_NETWORK_ACCESS_REQUEST, \
+    FULL_VENDOR_APPROVAL_REQUEST
+
 
 basic_fake_payload = {
     'token': '6gXYiea8a5GXPFnyHHjdqnYi',
@@ -29,12 +33,12 @@ def create_payload_with_text(txt: str) -> dict:
 class MyTestCase(unittest.TestCase):
     def test_given_unparsable_request_then_result_is_unclassified(self):
         response = classify_command(basic_fake_payload, NULL_ACK)
-        self.assertIsInstance(UnIdentifiedUserRequest, response)
+        self.assertIsInstance(response, UnIdentifiedUserRequest)
 
     def test_given_every_required_field_for_Firewall_Change_request_then_result_is_firewall_change(self):
         fake_fw_change_payload = create_payload_with_text('Allow SSH to external IP 196.181.12.201 on port 22')
         response = classify_command(fake_fw_change_payload, NULL_ACK)
-        self.assertIsInstance(FireWallChangeRequest, response)
+        self.assertIsInstance(response, FireWallChangeRequest)
 
 if __name__ == '__main__':
     unittest.main()

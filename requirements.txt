@@ -22,3 +22,4 @@ slack_api
 slack_sdk
 flask
 slack-bolt
+parameterized

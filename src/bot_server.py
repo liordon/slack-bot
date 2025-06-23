@@ -7,6 +7,8 @@ from slack_sdk.errors import SlackRequestError
 import re
 
 from src.constants import RequestTypes
+from src.regex_classifier import attempt_to_classify, construct_according_to_classification
+from src.requests import UnIdentifiedUserRequest
 
 app = Flask(__name__)
 bot_token = os.environ.get("SLACK_BOT_API_TOKEN")
@@ -65,12 +67,17 @@ def classify_command(payload, ack):
     print(payload)
     channel = payload.get('channel_name')
     thread_ts = payload.get('ts')
-    print(f"Channel: {channel}\nthread_ts: {thread_ts}")
+    user_message = payload.get('text')
+    request_type = attempt_to_classify(user_message)
+    formed_request = construct_according_to_classification(request_type, user_message)
+    print(f"Channel: {channel}\nthread_ts: {thread_ts}\nidentified_request_type: {request_type}\nfrom user_message: {user_message}\nformed request: {formed_request}")
+
+
     response = client.chat_postMessage(channel=channel,
                                        thread_ts=thread_ts,
                                        blocks=blocks,
                                        text='hyper vyper couldn\'t classify your request')
-    return RequestTypes.UNKNOWN
+    return formed_request
 
 @bolt_app.message(re.compile("(hi|hello|hey) vyper"))
 def reply_in_thread(payload: dict):

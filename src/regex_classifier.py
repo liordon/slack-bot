@@ -6,7 +6,7 @@ from src.requests import *
 from src.constants import *
 
 def attempt_to_classify(text: str) -> str:
-    if 'firewall' in text:
+    if __firewall_preamble.search(text):
         return RequestTypes.FIREWALL_CHANGE
     if 'install' in text:
         return RequestTypes.DEVTOOL_INSTALL
@@ -22,6 +22,23 @@ def attempt_to_classify(text: str) -> str:
         return RequestTypes.VENDOR_APPROVAL
     return RequestTypes.UNKNOWN
 
+def construct_according_to_classification(classification: str, txt:str) -> UserRequest:
+    if classification == RequestTypes.CLOUD_ACCESS:
+        return attempt_to_construct_cloud_access(txt)
+    elif classification == RequestTypes.DATA_EXPORT:
+        return attempt_to_construct_data_export(txt)
+    elif classification == RequestTypes.DEVTOOL_INSTALL:
+        return attempt_to_construct_devtool_install(txt)
+    elif classification == RequestTypes.FIREWALL_CHANGE:
+        return attempt_to_construct_firewall_change(txt)
+    elif classification == RequestTypes.NETWORK_ACCESS:
+        return attempt_to_construct_network_access(txt)
+    elif classification == RequestTypes.PERMISSION_CHANGE:
+        return attempt_to_construct_permissions_change(txt)
+    elif classification == RequestTypes.VENDOR_APPROVAL:
+        return attempt_to_construct_vendor_approval(txt)
+    else:
+        return UnIdentifiedUserRequest()
 
 def extract_if_found(regex: re.Pattern, text: str, extractor: Callable[[re.Match], Any]) -> Any:
     match = regex.search(text)
@@ -90,7 +107,7 @@ def attempt_to_construct_vendor_approval(text: str) -> VendorApprovalRequest:
 __allow_traffic = re.compile(r'allow\s*\w*\s*traffic', flags=re.IGNORECASE)
 __provide_services = re.compile(r'provides? (\w*\s*)+services', flags=re.IGNORECASE)
 
-__firewall_preamble = re.compile(r'requesting temporary firewall rule to allow outbound SSH', flags=re.IGNORECASE)
+__firewall_preamble = re.compile(r'temporary firewall rule|allow ssh to external ip', flags=re.IGNORECASE)
 __firewall_source = re.compile(r'from (?P<source>(\w+\s*)*)', flags=re.IGNORECASE)
 __firewall_destination = re.compile(r'to (\w+\s+)*(?P<ip>(\d+\.){3}\d+) on port (?P<port>\d+)', flags=re.IGNORECASE)
 
