@@ -1,8 +1,6 @@
 import unittest
-from typing import List, Any
 
-from src.parsing.fields import RequestField
-from src.parsing.requests import UserRequest
+from src.parsing.requests import UserRequest, RequestField
 
 
 class _FakeRequest(UserRequest):
@@ -15,6 +13,7 @@ class _FakeRequest(UserRequest):
         )
         self.a = a
         self.b = b
+
 
 class BasicRequestActionsCase(unittest.TestCase):
 
@@ -37,6 +36,7 @@ class BasicRequestActionsCase(unittest.TestCase):
     def test_request_name_appears_in_pretty_print(self):
         req = _FakeRequest('a', 0)
         self.assertIn(req.__class__.__name__, req.pretty_print())
+
     def test_request_fields_and_descriptions_appears_in_pretty_print(self):
         req = _FakeRequest('a', 0)
         pretty_print = req.pretty_print()
