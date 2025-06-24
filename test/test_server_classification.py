@@ -1,5 +1,5 @@
 import unittest
-from src.bot_server import classify_command
+from src.bot_policy import classify_command
 from src.parsing.requests import *
 
 basic_fake_payload = {

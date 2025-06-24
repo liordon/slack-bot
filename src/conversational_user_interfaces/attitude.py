@@ -1,7 +1,9 @@
 from abc import ABC, abstractmethod
 from typing import List
 
-from src.parsing.fields import MissingField
+from src.parsing.fields import RequestField
+from src.parsing.requests import UserRequest
+
 
 class Attitude(ABC):
     @abstractmethod
@@ -9,18 +11,18 @@ class Attitude(ABC):
         pass
 
     @abstractmethod
-    def generate_rejection_block(self, payload: dict) -> dict:
+    def generate_rejection_block(self) -> dict:
         pass
 
     @abstractmethod
-    def generate_approval_block(self, payload: dict) -> dict:
+    def generate_approval_block(self) -> dict:
         pass
 
     @abstractmethod
-    def generate_request_for_fields(self, missing_fields: List[MissingField]) -> dict:
+    def generate_request_for_fields(self, missing_fields: List[RequestField]) -> dict:
         pass
 
-    def _format_entire_missing_fields_list(self, missing_fields: List[MissingField]) -> str:
+    def _format_entire_missing_fields_list(self, missing_fields: List[RequestField]) -> str:
         formatted_fields = [self._format_missing_field(f) for f in missing_fields]
         return '\n'.join(formatted_fields)
 
@@ -32,11 +34,14 @@ class Attitude(ABC):
     def generate_initial_classification_block(self, classification: str) -> dict:
         pass
 
-    def _format_missing_field(self, missing_field: MissingField) -> str:
+    def _format_missing_field(self, missing_field: RequestField) -> str:
         return f"*<{missing_field.name.replace('_',' ')}>*: " + ('mandatory' if missing_field.is_required else '_optional_') + f"\n{missing_field.description}\n"
 
     @abstractmethod
     def generate_refusal_block_for_thread(self):
+        pass
+
+    def generate_user_request_description_block(self, user_request: UserRequest) -> dict:
         pass
 
 def wrap_with_markdown_block(txt: str) -> dict:

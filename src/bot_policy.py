@@ -7,9 +7,9 @@ from cachetools import TTLCache
 import logging
 
 from src.conversational_user_interfaces.professional import Professional
-from src.parsing.constants import RequestTypes
+from src.parsing.constants import RequestFollowUp
 from src.parsing.regex_classifier import attempt_to_classify, construct_according_to_classification
-from src.parsing.requests import UnIdentifiedUserRequest
+from src.parsing.requests import UnIdentifiedUserRequest, UserRequest, RequestTypes
 from src.security_estimator import calculate_security_risk
 
 logging.basicConfig(level=logging.DEBUG)
@@ -21,7 +21,6 @@ bot_signature = os.environ.get("SLACK_BOT_SIGNING_SECRET")
 if None in [bot_token, bot_signature]:
     raise ValueError("Bot Token and Bot Signing Secret must be set")
 
-# client = WebClient(token=bot_token)
 bolt_app = App(token=bot_token, signing_secret=bot_signature)
 attitude = Professional()
 
@@ -31,10 +30,10 @@ requests_map = TTLCache(maxsize=100, ttl=3600)
 @app.route("/hyper-vyper/events", methods=["POST"])
 def slack_events():
     """ Declaring the route where slack will post a request """
-    print("Request received")
+    logger.info("Request received")
     # slack_event = request.json
-    # print(slack_event)
-    # print(f"recieved event via message: {slack_event['event']['text']}")
+    # logger.info(slack_event)
+    # logger.info(f"recieved event via message: {slack_event['event']['text']}")
     return handler.handle(request)
 
 
@@ -124,8 +123,11 @@ def classify_command(payload, ack, client):
 
     logger.debug(f"Channel: {channel}\nthread_ts: {thread_ts}")
     logger.debug(f"identified_request_type: {request_type}\nfrom user_message: {user_message}")
+    blocks.append(attitude.generate_user_request_description_block(formed_request))
 
-    blocks.extend(form_reply_to_request(formed_request, payload, thread_ts))
+    decision = decide_on_follow_up(formed_request)
+    reply_blocks = formulate_reply_according_to_follow_up(formed_request, decision)
+    blocks.extend(reply_blocks)
 
     try:
         response_data = client.chat_postMessage(channel=channel,
@@ -134,7 +136,8 @@ def classify_command(payload, ack, client):
                                 text='hyper vyper has processed your request')
         new_ts = response_data['ts']
         logger.info(f"New request: {new_ts}")
-        # TODO save ongoing request to this thread.
+
+        manage_cache_according_to_follow_up(formed_request, decision, thread_ts)
     except Exception as e:
         logger.exception(e)
         logger.error(blocks)
@@ -142,21 +145,36 @@ def classify_command(payload, ack, client):
     return formed_request
 
 
-def form_reply_to_request(formed_request, payload, thread_ts):
-    reply_blocks = []
+def decide_on_follow_up(formed_request: UserRequest) -> RequestFollowUp:
     security_risk = calculate_security_risk(formed_request)
     logger.info(f"formed request: {formed_request}\nsecurity_risk: {security_risk}")
     if formed_request.is_valid() and security_risk < 75:
-        reply_blocks.append(attitude.generate_approval_block(payload))
-        requests_map.pop(thread_ts)
+        return RequestFollowUp.ACCEPT
     elif not isinstance(formed_request, UnIdentifiedUserRequest) and not formed_request.is_valid():
+        return RequestFollowUp.REQUEST_FURTHER_DETAILS
+    else:
+        return RequestFollowUp.REJECT
+
+
+def formulate_reply_according_to_follow_up(formed_request: UserRequest, followup: RequestFollowUp) -> list:
+    reply_blocks = []
+    if followup is RequestFollowUp.ACCEPT:
+        reply_blocks.append(attitude.generate_approval_block())
+    elif followup is RequestFollowUp.REQUEST_FURTHER_DETAILS:
         missing_fields = formed_request.get_missing_fields()
         reply_blocks.append(attitude.generate_request_for_fields(missing_fields))
-        requests_map[thread_ts] = formed_request
     else:
-        reply_blocks.append(attitude.generate_rejection_block(payload))
+        reply_blocks.append(attitude.generate_rejection_block())
 
     return reply_blocks
+
+def manage_cache_according_to_follow_up(formed_request: UserRequest, followup: RequestFollowUp, thread_ts: float) -> None:
+    if followup in [RequestFollowUp.ACCEPT, RequestFollowUp.REJECT]:
+        requests_map.pop(str(thread_ts), None)
+    elif followup is RequestFollowUp.REQUEST_FURTHER_DETAILS:
+        requests_map[str(thread_ts)] = formed_request
+    else:
+        logger.error(f"Encountered unknown followup request: {followup}")
 
 
 handler = SlackRequestHandler(bolt_app)

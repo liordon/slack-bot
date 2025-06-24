@@ -1,9 +1,10 @@
 import re
 
-from typing import Callable, Any
+from typing import Callable
 
 from src.parsing.requests import *
-from src.parsing.constants import *
+from src.parsing.requests import RequestTypes
+
 
 def attempt_to_classify(text: str) -> str:
     if __firewall_preamble.search(text):
