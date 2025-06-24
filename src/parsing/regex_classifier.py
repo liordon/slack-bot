@@ -109,7 +109,7 @@ __provide_services = re.compile(r'provides? (\w*\s*)+services', flags=re.IGNOREC
 
 __firewall_preamble = re.compile(r'temporary firewall rule|allow ssh to external ip', flags=re.IGNORECASE)
 __firewall_source = re.compile(r'from (?P<source>(\w+\s*)*)', flags=re.IGNORECASE)
-__firewall_destination = re.compile(r'to (\w+\s+)*(?P<ip>(\d+\.){3}\d+) on port (?P<port>\d+)', flags=re.IGNORECASE)
+__firewall_destination = re.compile(r'to (\w+\s+)*(?P<ip>(\d+\.){3}\d+)( on port |:)(?P<port>\d+)', flags=re.IGNORECASE)
 
 __request_justification_pattern = re.compile(r'((for)|(to)) (?P<justification>(\w+\s*)+)(\.|$)', flags=re.IGNORECASE)
 

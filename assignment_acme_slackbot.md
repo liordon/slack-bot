@@ -8,7 +8,7 @@ for security requests (network changes, vendor approvals, permission escalations
 first internal Slack App that can triage these requests automatically, drive any missing-data conversation with the
 requester, and produce a final decision consistent with ACME’s historical “tribal knowledge”.
 
-## Part 1 – Build the Bot
+## Part 1 – Build the Bot
 ----------------------
 1. **Slack interface** – A slash‑command or app‑mention that accepts free‑text requests.
 2. **classification** – Parse the message, classify the request type, and estimate the security‑risk score.
@@ -19,13 +19,13 @@ requester, and produce a final decision consistent with ACME’s historical “t
 5. **Persistence & transparency** – Log every interaction and decision to a local JSON/SQLite store so that the
    history can be audited.
 
-## Part 2 – What to Deliver
+## Part 2 – What to Deliver
 ------------------------
 * Source code
 * BackEnd should run locally on your computer. bonus: in a docker or cloud environment
 * Active Slack app. We will chat with your Slack app.
 * A **README** containing:
-  - Design decisions & algorithm description (max 300 words).
+  - Design decisions & algorithm description (max **300** words).
 
 ## Part 3 - Excellence
 ------------------------

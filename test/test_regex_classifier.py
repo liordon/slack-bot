@@ -140,6 +140,12 @@ class FireWallChangeTest(unittest.TestCase):
         user_req = attempt_to_construct_firewall_change(f"to vendor IP {dest_ip} on port {dest_port}")
         self.assertEqual(f"{dest_ip}:{dest_port}", user_req.destination_ip)
 
+    def test_given_destination_address_shorthand_in_request_then_appropriate_field_is_extracted(self):
+        dest_ip = '127.0.0.1'
+        dest_port = 666
+        user_req = attempt_to_construct_firewall_change(f"to vendor IP {dest_ip}:{dest_port}")
+        self.assertEqual(f"{dest_ip}:{dest_port}", user_req.destination_ip)
+
     def test_given_any_justification_in_request_then_appropriate_field_is_extracted(self):
         justification = 'creating a backdoor for Laplandian hackers'
         user_req = attempt_to_construct_firewall_change(f"for {justification}")
