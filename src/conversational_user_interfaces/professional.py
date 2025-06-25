@@ -18,7 +18,7 @@ class Professional(Attitude):
 
     def generate_request_for_fields(self, missing_fields: List[RequestField]) -> dict:
         return wrap_with_markdown_block(
-            "*ERROR* I must ask you to fill in the following fields:\n" + \
+            "*ERROR* I must ask you to fill in the following fields:\n" +
             f"{self._format_entire_missing_fields_list(missing_fields)}"
         )
 
@@ -34,13 +34,13 @@ class Professional(Attitude):
 
     def generate_acknowledgement_block(self, payload: dict) -> dict:
         return wrap_with_markdown_block(
-            "I Received a *slash command* to classify the following input for " + \
+            "I Received a *slash command* to classify the following input for " +
             f"<@{payload.get('user_id')}>:"
         )
 
     def generate_initial_classification_block(self, classification: str) -> dict:
         return wrap_with_markdown_block(
-            "from what I gather, this is " + \
-            determine_indefinite_article(classification) + \
+            "from what I gather, this is " +
+            determine_indefinite_article(classification) +
             classification + " request."
         )

@@ -2,6 +2,7 @@ import unittest
 
 from parameterized import parameterized
 
+from src.parsing.constants import RequestTypes
 from src.parsing.regex_classifier import (
     attempt_to_classify, attempt_to_construct_firewall_change,
     attempt_to_construct_devtool_install, attempt_to_construct_cloud_access,
@@ -10,7 +11,11 @@ from src.parsing.regex_classifier import (
     attempt_to_construct_network_access,
     construct_according_to_classification
 )
-from src.parsing.requests import *
+from src.parsing.requests import (
+    CloudResourceAccessRequest, DataExportRequest,
+    DevToolInstallRequest, FireWallChangeRequest, NetworkAccessRequest, PermissionsChangeRequest,
+    VendorApprovalRequest
+)
 from test.example_request_texts import (
     FULL_FIREWALL_CHANGE_REQUEST, FULL_DEVTOOL_INSTALL_REQUEST,
     FULL_PERMISSION_CHANGE_REQUEST, FULL_DATA_EXPORT_REQUEST, FULL_CLOUD_ACCESS_REQUEST,
@@ -20,7 +25,6 @@ from test.example_request_texts import (
 
 
 def _generate_name_for_type_test(testcase_func, param_num, param):
-    retval = parameterized.to_safe_name(f"{testcase_func.__name__}_{param_num}_{param.args[1]}")
     return parameterized.to_safe_name(f"{testcase_func.__name__}_{param_num}_{param.args[1]}")
 
 
@@ -42,7 +46,7 @@ class BasicClassificationTest(unittest.TestCase):
     )
     def test_given_full_message_then_the_appropriate_request_is_constructed(
             self, classification, type_name
-            ):
+    ):
         self.assertEquals(type_name, attempt_to_classify(classification))
 
     @parameterized.expand(
@@ -58,7 +62,7 @@ class BasicClassificationTest(unittest.TestCase):
     )
     def test_given_classification_then_the_appropriate_request_is_constructed(
             self, request_type, type_name
-            ):
+    ):
         self.assertIsInstance(construct_according_to_classification(type_name, ''), request_type)
 
 
@@ -108,21 +112,21 @@ class DataExportTest(unittest.TestCase):
         user_req_1 = attempt_to_construct_data_export("Export 10GB of data.")
         self.assertEqual(user_req_1.data_volume_gb, 10.0)
 
-        user_req_2 = attempt_to_construct_data_export(
-            "Data volume approx 500MB."
-        )  # If you handle MB, adjust expected value
-        # self.assertEqual(user_req_2.data_volume_gb, 0.5)
-
-        user_req_3 = attempt_to_construct_data_export(
-            "Data size: ~2.5TB for research."
-        )  # If you handle TB, adjust expected value
-        # self.assertEqual(user_req_3.data_volume_gb, 2500.0)
+        # user_req_2 = attempt_to_construct_data_export(
+        #     "Data volume approx 500MB."
+        # )  # If you handle MB, adjust expected value
+        # # self.assertEqual(user_req_2.data_volume_gb, 0.5)
+        #
+        # user_req_3 = attempt_to_construct_data_export(
+        #     "Data size: ~2.5TB for research."
+        # )  # If you handle TB, adjust expected value
+        # # self.assertEqual(user_req_3.data_volume_gb, 2500.0)
 
     def test_given_missing_mandatory_field_then_field_is_none(self):
         # Test case where business justification is missing
         user_req = attempt_to_construct_data_export(
             "Export data to secure S3 bucket acme-dev. No PII."
-            )
+        )
         self.assertIsNone(user_req.business_justification)
 
 
@@ -158,12 +162,12 @@ class FireWallChangeTest(unittest.TestCase):
         dest_port = 666
         user_req = attempt_to_construct_firewall_change(
             f"to vendor IP {dest_ip} on port {dest_port}"
-            )
+        )
         self.assertEqual(f"{dest_ip}:{dest_port}", user_req.destination_ip)
 
     def test_given_destination_address_shorthand_in_request_then_appropriate_field_is_extracted(
             self
-            ):
+    ):
         dest_ip = '127.0.0.1'
         dest_port = 666
         user_req = attempt_to_construct_firewall_change(f"to vendor IP {dest_ip}:{dest_port}")
@@ -218,7 +222,7 @@ class PermissionChangeTest(unittest.TestCase):
         aws_account = 'acme-test-env'
         user_req = attempt_to_construct_permissions_change(
             f"Requesting role for AWS account {aws_account}."
-            )
+        )
         self.assertEqual(aws_account, user_req.aws_account)
 
     def test_given_role_requested_in_request_then_role_is_extracted(self):
@@ -240,7 +244,7 @@ class VendorApprovalTest(unittest.TestCase):
         vendor = 'Acne Solutions'
         user_req = attempt_to_construct_vendor_approval(
             f"{vendor} provide solutions for pimple epidemics."
-            )
+        )
         self.assertEqual(vendor, user_req.vendor_name)
 
     def test_given_no_pii_involved_then_pii_is_false(self):
@@ -250,7 +254,7 @@ class VendorApprovalTest(unittest.TestCase):
 
     def test_given_attestation_of_security_questionnaire_in_request_then_appropriate_field_is_set(
             self
-            ):
+    ):
         pii_involvement = "I completed ACME's security questionnaire with a failing score"
         user_req = attempt_to_construct_vendor_approval(pii_involvement)
         self.assertFalse(user_req.security_questionnaire_completed)
@@ -258,7 +262,7 @@ class VendorApprovalTest(unittest.TestCase):
 
     def test_given_evidence_of_security_report_validity_in_request_then_appropriate_field_is_set(
             self
-            ):
+    ):
         pii_involvement = "I don't have a valid SOC 2 Type II report."
         user_req = attempt_to_construct_vendor_approval(pii_involvement)
         self.assertFalse(user_req.security_questionnaire_completed)

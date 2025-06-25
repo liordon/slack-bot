@@ -1,4 +1,4 @@
-from src.parsing.requests import *
+from src.parsing.requests import UserRequest
 
 
 def calculate_security_risk(request: UserRequest) -> float:

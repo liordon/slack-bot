@@ -64,7 +64,9 @@ def handle_message(message: dict, client: WebClient, say: Say, context):
                             attitude.generate_user_request_description_block(thread_request)
                             )
                         say(
-                            text=f"Hey <@{user_id}>! Thanks for replying to my previous message in this thread. we were discussing {thread_request}",
+                            text=f"Hey <@{user_id}>! " +
+                                 "Thanks for replying to my previous message in this thread. " +
+                                 f"we were discussing {thread_request}",
                             thread_ts=thread_root_ts
                             # Ensure the reply goes back into the same thread
                         )

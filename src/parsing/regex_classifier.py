@@ -3,7 +3,11 @@ import re
 from typing import Callable, Any
 
 from src.parsing.constants import RequestTypes
-from src.parsing.requests import *
+from src.parsing.requests import (
+    UserRequest, UnIdentifiedUserRequest, CloudResourceAccessRequest,
+    DataExportRequest, DevToolInstallRequest, FireWallChangeRequest, NetworkAccessRequest,
+    PermissionsChangeRequest, VendorApprovalRequest
+)
 
 
 def attempt_to_classify(text: str) -> str:
