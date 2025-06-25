@@ -65,7 +65,7 @@ class Attitude(ABC):
     @staticmethod
     def generate_user_request_description_block(user_request: UserRequest) -> dict:
         """Generates a block that informs the user of how we parsed his request in detail."""
-        return wrap_with_markdown_block(user_request.pretty_print())
+        return wrap_with_markdown_block(user_request.pretty_print_content())
 
 
 def wrap_with_markdown_block(txt: str) -> dict:

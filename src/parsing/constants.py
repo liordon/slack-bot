@@ -8,10 +8,10 @@ class RequestFollowUp(Enum):
     """
     Followup strategies we may employ for a given requests.
     """
-    ACCEPT = 'accept'
-    REJECT = 'reject'
-    REQUEST_FURTHER_DETAILS = 'request_further_details'
-    IRRELEVANT = 'irrelevant'
+    ACCEPT = 'Accept'
+    REJECT = 'Reject'
+    REQUEST_FURTHER_DETAILS = 'Request_further_details'
+    IRRELEVANT = 'Irrelevant'
 
 
 class RequestTypes(object):

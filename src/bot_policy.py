@@ -1,9 +1,13 @@
 import logging
+import uuid
+from datetime import datetime, timezone
 
 from cachetools import TTLCache
 from slack_bolt import Say
 from slack_sdk import WebClient
 
+from src.auditing.bot_decision import BotDecision, BotDecisionResponse
+from src.auditing.decision_logging import DecisionLogger
 from src.conversational_user_interfaces.professional import Professional
 from src.parsing.constants import RequestFollowUp
 from src.parsing.regex_classifier import attempt_to_classify, construct_according_to_classification
@@ -11,27 +15,30 @@ from src.parsing.requests import UnIdentifiedUserRequest, UserRequest
 from src.security_estimator import calculate_security_risk
 
 logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger(__name__)
+flow_logger = logging.getLogger(__name__)
+decision_logger = DecisionLogger()
 
 requests_map = TTLCache(maxsize=100, ttl=3600)
 attitude = Professional()
+security_risk_threshold = 75
 
 
-def handle_message(message: dict, client: WebClient, say: Say, context):
+def handle_message(message: dict, client: WebClient, say: Say, context) -> BotDecisionResponse:
     """
     Handles all incoming messages and checks if they are replies
     to the bot's own messages within a thread.
+
+    Generic messages are ignored.
+    Replies to existing threads are treated as a chance to fix partial security requests.
     """
-    logger.info(f"Received message: {message}")
-    thread_request = None
-    followup = RequestFollowUp.IRRELEVANT
+    flow_logger.info(f"Received message: {message}")
 
     if __is_message_inside_a_thread(message):
         thread_root_ts = message['thread_ts']
         channel_id = message['channel']
         user_id = message['user']  # The user who replied
 
-        logger.info(f"Message is a thread reply. Thread TS: {thread_root_ts}")
+        flow_logger.info(f"Message is a thread reply. Thread TS: {thread_root_ts}")
 
         try:
             result = client.conversations_history(
@@ -44,47 +51,95 @@ def handle_message(message: dict, client: WebClient, say: Say, context):
             if result['ok'] and result['messages']:
                 root_message = result['messages'][0]
                 if __we_initiated_this_thread(context, root_message):
-                    logger.info(
-                        f"User '{user_id}' replied to our bot's message in thread: '{message['text']}'"
-                        )
-                    thread_request = requests_map.get(str(thread_root_ts), None)
-                    followup = _decide_on_follow_up(thread_request)
-
-                    blocks = [
-                        attitude.generate_acknowledgement_block(message),
-                        attitude.generate_reflection_block(message),
-                    ]
-
-                    if thread_request is not None:
-                        completing_request = construct_according_to_classification(
-                            thread_request.request_type, message['text']
-                            )
-
-                        blocks.append(
-                            attitude.generate_user_request_description_block(thread_request)
-                            )
-                        say(
-                            text=f"Hey <@{user_id}>! " +
-                                 "Thanks for replying to my previous message in this thread. " +
-                                 f"we were discussing {thread_request}",
-                            thread_ts=thread_root_ts
-                            # Ensure the reply goes back into the same thread
-                        )
-                    else:
-                        say(
-                            text=f"Hey <@{user_id}>! I'm sorry, but I closed the request in this thread due to timeout or completion. let's start over.",
-                            thread_ts=thread_root_ts
-                            # Ensure the reply goes back into the same thread
-                        )
+                    return fix_previously_submitted_request(
+                        message, say, thread_root_ts, user_id
+                    )
                 else:
-                    logger.info("Root message was not from this bot.")
+                    flow_logger.info("Root message was not from this bot.")
             else:
-                logger.warning(f"Could not retrieve root message for thread_ts: {thread_root_ts}")
+                flow_logger.warning(
+                    f"Could not retrieve root message for thread_ts: {thread_root_ts}"
+                )
 
         except Exception as e:
-            logger.error(f"Error fetching thread history: {e}")
+            flow_logger.error(f"Error fetching thread history: {e}")
 
-    return thread_request, followup
+    return generate_irrelevant_response(message['text'])
+
+
+def generate_irrelevant_response(user_message: str) -> BotDecisionResponse:
+    return BotDecisionResponse(
+        bot_decision=BotDecision(
+            details=user_message,
+            outcome=RequestFollowUp.IRRELEVANT,
+        )
+    )
+
+
+def fix_previously_submitted_request(message, say, thread_root_ts, user_id) -> BotDecisionResponse:
+    user_message = message['text']
+    flow_logger.info(
+        f"User '{user_id}' replied to our bot's message in thread: '{user_message}'"
+    )
+    thread_request = requests_map.get(str(thread_root_ts), None)
+    old_ticket_id = str(uuid.uuid3(uuid.NAMESPACE_URL, str(thread_root_ts)))
+
+    blocks = [
+        attitude.generate_acknowledgement_block(message),
+        attitude.generate_reflection_block(message),
+    ]
+
+    if thread_request is not None:
+        completing_request = construct_according_to_classification(
+            thread_request.request_type, user_message
+        )
+
+        merged_request = thread_request.merge_with(completing_request)
+        security_risk = calculate_security_risk(merged_request)
+        flow_logger.info(f"formed request: {merged_request}\nsecurity_risk: {security_risk}")
+
+        followup = _decide_on_follow_up(merged_request, security_risk)
+        _manage_cache_according_to_follow_up(merged_request, followup, thread_root_ts)
+        thread_request = merged_request
+
+        blocks.append(
+            attitude.generate_user_request_description_block(merged_request)
+        )
+        say(
+            text=f"Hey <@{user_id}>! " +
+                 "Thanks for replying to my previous message in this thread. " +
+                 f"we were discussing {thread_request}",
+            thread_ts=thread_root_ts
+            # Ensure the reply goes back into the same thread
+        )
+        mandatory_field_names = [f.name for f in merged_request.get_mandatory_fields()]
+        bot_decision = BotDecision(
+            ticket_id=old_ticket_id,
+            created_at=datetime.now(timezone.utc),
+            request_type=merged_request.request_type,
+            request_summary='???',
+            details=user_message,
+            mandatory_fields=mandatory_field_names,
+            fields_provided=[f for f in mandatory_field_names if
+                getattr(merged_request, f) is not None],
+            outcome=followup,
+            security_risk=security_risk
+        )
+        decision_logger.log(bot_decision)
+        bot_response = BotDecisionResponse(
+            user_request=merged_request,
+            response_in_chat=blocks,
+            bot_decision=bot_decision,
+        )
+        return bot_response
+    else:
+        say(
+            text=f"Hey <@{user_id}>! I'm sorry, but I closed the request in this thread due to timeout or completion. let's start over.",
+            thread_ts=thread_root_ts
+            # Ensure the reply goes back into the same thread
+        )
+
+        return generate_irrelevant_response(user_message)
 
 
 def __we_initiated_this_thread(context, root_message):
@@ -113,7 +168,7 @@ def help_command(say):
     say(text=text)
 
 
-def classify_and_respond(payload, client):
+def classify_and_respond(payload, client) -> BotDecisionResponse:
     """This initiates a conversation about a security request."""
     blocks = [
         attitude.generate_acknowledgement_block(payload),
@@ -121,46 +176,63 @@ def classify_and_respond(payload, client):
     ]
     new_ts = None
 
-    logger.debug(payload)
+    flow_logger.debug(payload)
     channel = payload.get('channel_name')
-    thread_ts = payload.get('ts')
     user_message = payload.get('text')
     request_type = attempt_to_classify(user_message)
-    blocks.append(attitude.generate_initial_classification_block(request_type))
 
     formed_request = construct_according_to_classification(request_type, user_message)
+    flow_logger.debug(f"identified_request_type: {request_type}\nfrom user_message: {user_message}")
 
-    logger.debug(f"Channel: {channel}\nthread_ts: {thread_ts}")
-    logger.debug(f"identified_request_type: {request_type}\nfrom user_message: {user_message}")
+    blocks.append(attitude.generate_initial_classification_block(request_type))
     blocks.append(attitude.generate_user_request_description_block(formed_request))
+    security_risk = calculate_security_risk(formed_request)
 
-    followup = _decide_on_follow_up(formed_request)
+    followup = _decide_on_follow_up(formed_request, security_risk)
     reply_blocks = _formulate_reply_according_to_follow_up(formed_request, followup)
     blocks.extend(reply_blocks)
 
+    mandatory_field_names = [f.name for f in formed_request.get_mandatory_fields()]
+    bot_decision = BotDecision(
+        ticket_id='invalid',
+        created_at=datetime.now(timezone.utc),
+        request_type=request_type,
+        request_summary='???',
+        details=user_message,
+        mandatory_fields=mandatory_field_names,
+        fields_provided=[f for f in mandatory_field_names if getattr(formed_request, f) is not None],
+        outcome=followup,
+        security_risk=security_risk
+    )
+    bot_response = BotDecisionResponse(
+        user_request=formed_request,
+        response_in_chat=blocks,
+        bot_decision=bot_decision,
+    )
     try:
         response_data = client.chat_postMessage(
             channel=channel,
-            thread_ts=thread_ts,
             blocks=blocks,
             text='hyper vyper has processed your request'
-            )
+        )
         new_ts = response_data['ts']
-        logger.info(f"New request: {new_ts}")
+        flow_logger.info(f"New request: {new_ts}")
+        bot_response.thread_ts = new_ts
 
         _manage_cache_according_to_follow_up(formed_request, followup, new_ts)
+        new_ticket_id = str(uuid.uuid3(uuid.NAMESPACE_URL, str(new_ts)))
+        bot_decision.ticket_id = new_ticket_id
     except Exception as e:
-        logger.exception(e)
-        logger.error(blocks)
-        logger.error('failed to respond to user')
-    return formed_request, blocks, new_ts
+        flow_logger.exception(e)
+        flow_logger.error(blocks)
+        flow_logger.error('Failed to respond to user')
+    decision_logger.log(bot_decision)
+    return bot_response
 
 
-def _decide_on_follow_up(formed_request: UserRequest) -> RequestFollowUp:
+def _decide_on_follow_up(formed_request: UserRequest, security_risk: float) -> RequestFollowUp:
     """given a (possibly partial) request parsed from the user, decides what to do with it."""
-    security_risk = calculate_security_risk(formed_request)
-    logger.info(f"formed request: {formed_request}\nsecurity_risk: {security_risk}")
-    if formed_request.is_valid() and security_risk < 75:
+    if formed_request.is_valid() and security_risk < security_risk_threshold:
         return RequestFollowUp.ACCEPT
     if not isinstance(formed_request, UnIdentifiedUserRequest) and not formed_request.is_valid():
         return RequestFollowUp.REQUEST_FURTHER_DETAILS
@@ -169,7 +241,7 @@ def _decide_on_follow_up(formed_request: UserRequest) -> RequestFollowUp:
 
 def _formulate_reply_according_to_follow_up(
         formed_request: UserRequest, followup: RequestFollowUp
-        ) -> list:
+) -> list:
     """given a chosen course of action regarding a parsed requests, builds an appropriate response blocks."""
     reply_blocks = []
     if followup is RequestFollowUp.ACCEPT:
@@ -185,7 +257,7 @@ def _formulate_reply_according_to_follow_up(
 
 def _manage_cache_according_to_follow_up(
         formed_request: UserRequest, followup: RequestFollowUp, thread_ts: float
-        ) -> None:
+) -> None:
     """
     clears a request from the cache if its handling is complete (due to approval or rejection)
     or updates the cache in anticipation of more information from the user to be sent in a future message.
@@ -195,4 +267,4 @@ def _manage_cache_according_to_follow_up(
     elif followup is RequestFollowUp.REQUEST_FURTHER_DETAILS:
         requests_map[str(thread_ts)] = formed_request
     else:
-        logger.error(f"Encountered unknown followup request: {followup}")
+        flow_logger.error(f"Encountered unknown followup request: {followup}")
