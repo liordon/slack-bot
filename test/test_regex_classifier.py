@@ -92,16 +92,6 @@ class DataExportTest(unittest.TestCase):
         user_req = attempt_to_construct_data_export(f"export data for {justification}.")
         self.assertEqual(justification, user_req.business_justification)
 
-    @unittest.skip("non-mandatory field")
-    def test_given_pii_involved_explicitly_then_pii_is_true(self):
-        user_req = attempt_to_construct_data_export("Sensitive PII involved in this data export.")
-        self.assertTrue(user_req.pii_involved)
-
-    @unittest.skip("non-mandatory field")
-    def test_given_no_pii_involved_explicitly_then_pii_is_false(self):
-        user_req = attempt_to_construct_data_export("Export data. No PII is included.")
-        self.assertFalse(user_req.pii_involved)
-
     def test_given_data_destination_in_request_then_destination_is_extracted(self):
         destination = 'secure-gcp-bucket-prod'
         user_req = attempt_to_construct_data_export(f"Data to be exported to {destination}.")
