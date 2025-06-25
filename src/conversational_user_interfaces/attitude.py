@@ -67,6 +67,16 @@ class Attitude(ABC):
         """Generates a block that informs the user of how we parsed his request in detail."""
         return wrap_with_markdown_block(user_request.pretty_print_content())
 
+    @abstractmethod
+    def generate_help_block(self):
+        """Generates a block that shows the user's help message."""
+        pass
+
+    @abstractmethod
+    def generate_closed_request_block(self) -> dict:
+        """Generates a block that responds the user's closed request."""
+        pass
+
 
 def wrap_with_markdown_block(txt: str) -> dict:
     """Wraps a text in a json markdown block"""

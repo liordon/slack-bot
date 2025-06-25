@@ -107,21 +107,6 @@ class DataExportTest(unittest.TestCase):
         user_req = attempt_to_construct_data_export(f"Data to be exported to {destination}.")
         self.assertEqual(destination, user_req.destination)
 
-    @unittest.skip("non-mandatory field")
-    def test_given_data_volume_in_request_then_volume_is_extracted(self):
-        user_req_1 = attempt_to_construct_data_export("Export 10GB of data.")
-        self.assertEqual(user_req_1.data_volume_gb, 10.0)
-
-        # user_req_2 = attempt_to_construct_data_export(
-        #     "Data volume approx 500MB."
-        # )  # If you handle MB, adjust expected value
-        # # self.assertEqual(user_req_2.data_volume_gb, 0.5)
-        #
-        # user_req_3 = attempt_to_construct_data_export(
-        #     "Data size: ~2.5TB for research."
-        # )  # If you handle TB, adjust expected value
-        # # self.assertEqual(user_req_3.data_volume_gb, 2500.0)
-
     def test_given_missing_mandatory_field_then_field_is_none(self):
         # Test case where business justification is missing
         user_req = attempt_to_construct_data_export(

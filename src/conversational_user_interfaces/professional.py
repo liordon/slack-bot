@@ -44,3 +44,12 @@ class Professional(Attitude):
             determine_indefinite_article(classification) +
             classification + " request."
         )
+
+    def generate_help_block(self) -> dict:
+        return wrap_with_markdown_block("I'm sorry, but you cannot be helped.")
+
+    def generate_closed_request_block(self) -> dict:
+        return wrap_with_markdown_block(
+            "I'm sorry, but I closed the request in this thread due to timeout or completion. " +
+            "let's start over."
+        )

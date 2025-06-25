@@ -1,10 +1,10 @@
 """
 Details generic security requests and their specific implementations.
 """
+import math
 from abc import ABC, abstractmethod
 from copy import deepcopy
 from typing import List, Dict
-import math
 
 from src.parsing.constants import RequestTypes
 
@@ -72,10 +72,10 @@ class UserRequest(ABC):
             )
         return new_request
 
-
     @property
     def request_type(self) -> str:
         return RequestTypes.UNKNOWN
+
 
 class UnIdentifiedUserRequest(UserRequest):
     def __init__(self):
@@ -136,10 +136,11 @@ class CloudResourceAccessRequest(UserRequest):
 
     def __eq__(self, other: 'CloudResourceAccessRequest') -> bool:
         return (
-            isinstance(other, CloudResourceAccessRequest)
-            and self.business_justification == other.business_justification
-            and self.sensitivity == other.sensitivity
+                isinstance(other, CloudResourceAccessRequest)
+                and self.business_justification == other.business_justification
+                and self.sensitivity == other.sensitivity
         )
+
 
 class DataExportRequest(UserRequest):
     __fields = [
@@ -183,10 +184,10 @@ class DataExportRequest(UserRequest):
 
     def __eq__(self, other: 'DataExportRequest') -> bool:
         return (
-            isinstance(other, DataExportRequest)
-            and self.business_justification == other.business_justification
-            and self.PII_involvement == other.PII_involvement
-            and self.destination == other.destination
+                isinstance(other, DataExportRequest)
+                and self.business_justification == other.business_justification
+                and self.PII_involvement == other.PII_involvement
+                and self.destination == other.destination
         )
 
 
@@ -321,10 +322,10 @@ class NetworkAccessRequest(UserRequest):
 
     def __eq__(self, other: 'NetworkAccessRequest') -> bool:
         return (
-            isinstance(other, NetworkAccessRequest)
-            and self.business_justification == other.business_justification
-            and self.source_cidr == other.source_cidr
-            and self.engineering_approval == other.engineering_approval
+                isinstance(other, NetworkAccessRequest)
+                and self.business_justification == other.business_justification
+                and self.source_cidr == other.source_cidr
+                and self.engineering_approval == other.engineering_approval
         )
 
 
@@ -390,12 +391,12 @@ class PermissionsChangeRequest(UserRequest):
 
     def __eq__(self, other: 'PermissionsChangeRequest') -> bool:
         return (
-            isinstance(other, PermissionsChangeRequest)
-            and self.business_justification == other.business_justification
-            and self.duration == other.duration
-            and self.manager_approval == other.manager_approval
-            and self.aws_account == other.aws_account
-            and self.role_requested == other.role_requested
+                isinstance(other, PermissionsChangeRequest)
+                and self.business_justification == other.business_justification
+                and self.duration == other.duration
+                and self.manager_approval == other.manager_approval
+                and self.aws_account == other.aws_account
+                and self.role_requested == other.role_requested
         )
 
     def get_duration_in_hours(self) -> float:
@@ -412,6 +413,7 @@ class PermissionsChangeRequest(UserRequest):
             return math.inf
         amount_of_units = int(self.duration.split(' ')[0])
         return amount_of_units * multiplier
+
 
 class VendorApprovalRequest(UserRequest):
     __fields = [
@@ -467,9 +469,9 @@ class VendorApprovalRequest(UserRequest):
 
     def __eq__(self, other: 'VendorApprovalRequest') -> bool:
         return (
-            isinstance(other, VendorApprovalRequest)
-            and self.vendor_name == other.vendor_name
-            and self.security_questionnaire_completed == other.security_questionnaire_completed
-            and self.data_classification == other.data_classification
-            and self.legal_review_completed == other.legal_review_completed
+                isinstance(other, VendorApprovalRequest)
+                and self.vendor_name == other.vendor_name
+                and self.security_questionnaire_completed == other.security_questionnaire_completed
+                and self.data_classification == other.data_classification
+                and self.legal_review_completed == other.legal_review_completed
         )

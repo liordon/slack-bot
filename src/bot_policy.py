@@ -8,6 +8,7 @@ from slack_sdk import WebClient
 
 from src.auditing.bot_decision import BotDecision, BotDecisionResponse
 from src.auditing.decision_logging import DecisionLogger
+from src.conversational_user_interfaces.furry import Furry
 from src.conversational_user_interfaces.professional import Professional
 from src.parsing.constants import RequestFollowUp
 from src.parsing.regex_classifier import attempt_to_classify, construct_according_to_classification
@@ -18,8 +19,8 @@ logging.basicConfig(level=logging.DEBUG)
 flow_logger = logging.getLogger(__name__)
 decision_logger = DecisionLogger()
 
-requests_map = TTLCache(maxsize=100, ttl=3600)
-attitude = Professional()
+requests_map = TTLCache(maxsize=100, ttl=1000*3600)
+attitude = Furry()
 security_risk_threshold = 75
 
 
@@ -52,7 +53,7 @@ def handle_message(message: dict, client: WebClient, say: Say, context) -> BotDe
                 root_message = result['messages'][0]
                 if __we_initiated_this_thread(context, root_message):
                     return fix_previously_submitted_request(
-                        message, say, thread_root_ts, user_id
+                        message, say, thread_root_ts, user_id, client
                     )
                 else:
                     flow_logger.info("Root message was not from this bot.")
@@ -76,7 +77,7 @@ def generate_irrelevant_response(user_message: str) -> BotDecisionResponse:
     )
 
 
-def fix_previously_submitted_request(message, say, thread_root_ts, user_id) -> BotDecisionResponse:
+def fix_previously_submitted_request(message, say, thread_root_ts, user_id, client) -> BotDecisionResponse:
     user_message = message['text']
     flow_logger.info(
         f"User '{user_id}' replied to our bot's message in thread: '{user_message}'"
@@ -100,24 +101,26 @@ def fix_previously_submitted_request(message, say, thread_root_ts, user_id) -> B
 
         followup = _decide_on_follow_up(merged_request, security_risk)
         _manage_cache_according_to_follow_up(merged_request, followup, thread_root_ts)
-        thread_request = merged_request
 
         blocks.append(
             attitude.generate_user_request_description_block(merged_request)
         )
-        say(
-            text=f"Hey <@{user_id}>! " +
-                 "Thanks for replying to my previous message in this thread. " +
-                 f"we were discussing {thread_request}",
-            thread_ts=thread_root_ts
-            # Ensure the reply goes back into the same thread
+
+        reply_blocks = _formulate_reply_according_to_follow_up(merged_request, followup)
+        blocks.extend(reply_blocks)
+
+        client.chat_postMessage(
+            channel=message['channel'],
+            thread_ts=thread_root_ts,
+            blocks=blocks,
+            text='hyper vyper has processed your request'
         )
+
         mandatory_field_names = [f.name for f in merged_request.get_mandatory_fields()]
         bot_decision = BotDecision(
             ticket_id=old_ticket_id,
             created_at=datetime.now(timezone.utc),
             request_type=merged_request.request_type,
-            request_summary='???',
             details=user_message,
             mandatory_fields=mandatory_field_names,
             fields_provided=[f for f in mandatory_field_names if
@@ -154,18 +157,8 @@ def __is_message_inside_a_thread(payload):
 
 def help_command(say):
     """returns the help output to the user"""
-    text = {
-        "blocks": [
-            {
-                "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": "I apologize, but you cannot be helped."
-                }
-            }
-        ]
-    }
-    say(text=text)
+    b = attitude.generate_help_block()
+    say(blocks=[b])
 
 
 def classify_and_respond(payload, client) -> BotDecisionResponse:
@@ -197,7 +190,6 @@ def classify_and_respond(payload, client) -> BotDecisionResponse:
         ticket_id='invalid',
         created_at=datetime.now(timezone.utc),
         request_type=request_type,
-        request_summary='???',
         details=user_message,
         mandatory_fields=mandatory_field_names,
         fields_provided=[f for f in mandatory_field_names if getattr(formed_request, f) is not None],
