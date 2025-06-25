@@ -31,7 +31,7 @@ def _generate_name_for_type_test(testcase_func, param_num, param):
 class BasicClassificationTest(unittest.TestCase):
     def test_given_empty_request_then_result_is_unclassified(self):
         classification = attempt_to_classify('')
-        self.assertEquals(RequestTypes.UNKNOWN, classification)
+        self.assertEqual(RequestTypes.UNKNOWN, classification)
 
     @parameterized.expand(
         [
@@ -47,7 +47,7 @@ class BasicClassificationTest(unittest.TestCase):
     def test_given_full_message_then_the_appropriate_request_is_constructed(
             self, classification, type_name
     ):
-        self.assertEquals(type_name, attempt_to_classify(classification))
+        self.assertEqual(type_name, attempt_to_classify(classification))
 
     @parameterized.expand(
         [
@@ -74,12 +74,12 @@ class CloudAccessTest(unittest.TestCase):
     def test_given_justification_in_request_then_appropriate_field_is_extracted(self):
         justification = 'defeating terrorism once and for all'
         user_req = attempt_to_construct_cloud_access(f"to {justification}")
-        self.assertEquals(justification, user_req.business_justification)
+        self.assertEqual(justification, user_req.business_justification)
 
     def test_given_data_sensitivity_in_request_then_appropriate_field_is_extracted(self):
         sensitivity = 'secretive. customer PII at risk'
         user_req = attempt_to_construct_cloud_access(f"Data classification: {sensitivity}")
-        self.assertEquals(sensitivity, user_req.sensitivity)
+        self.assertEqual(sensitivity, user_req.sensitivity)
 
 
 class DataExportTest(unittest.TestCase):
@@ -113,12 +113,12 @@ class DevtoolInstallTest(unittest.TestCase):
     def test_given_justification_in_request_then_appropriate_field_is_extracted(self):
         justification = 'creating secret logic bombs in code'
         user_req = attempt_to_construct_devtool_install(f"tool will be used for {justification}")
-        self.assertEquals(justification, user_req.business_justification)
+        self.assertEqual(justification, user_req.business_justification)
 
     def test_given_team_leader_approval_in_request_then_appropriate_field_is_extracted(self):
         ticket = 'JUCHA-7979'
         user_req = attempt_to_construct_devtool_install(f"Jira ticket: {ticket}")
-        self.assertEquals(ticket, user_req.team_leader_approval)
+        self.assertEqual(ticket, user_req.team_leader_approval)
 
 
 class FireWallChangeTest(unittest.TestCase):
@@ -162,14 +162,14 @@ class NetworkAccessTest(unittest.TestCase):
     def test_given_business_justification_in_request_then_appropriate_field_is_extracted(self):
         justification = 'writing more refined scifi stories'
         user_req = attempt_to_construct_network_access(f"this is needed for {justification}")
-        self.assertEquals(justification, user_req.business_justification)
+        self.assertEqual(justification, user_req.business_justification)
 
     def test_given_source_cidr_in_request_then_appropriate_field_is_extracted(self):
         cidr = '10.7.69.0/24'
         user_req = attempt_to_construct_network_access(
             f"allow MySQL traffic from internal subnet {cidr} to RDS cluster rds-acme-dev"
         )
-        self.assertEquals(cidr, user_req.source_cidr)
+        self.assertEqual(cidr, user_req.source_cidr)
 
 
 class PermissionChangeTest(unittest.TestCase):
@@ -180,17 +180,17 @@ class PermissionChangeTest(unittest.TestCase):
     def test_given_justification_in_request_then_appropriate_field_is_extracted(self):
         justification = 'develop a new kind of flubber'
         user_req = attempt_to_construct_permissions_change(f"to {justification}")
-        self.assertEquals(justification, user_req.business_justification)
+        self.assertEqual(justification, user_req.business_justification)
 
     def test_given_duration_in_request_then_appropriate_field_is_extracted(self):
         duration = '42 hours'
         user_req = attempt_to_construct_permissions_change(f"make me an admin for {duration}")
-        self.assertEquals(duration, user_req.duration)
+        self.assertEqual(duration, user_req.duration)
 
     def test_given_manager_approval_in_request_then_appropriate_field_is_extracted(self):
         jira_ticket = 'PADAS-71070'
         user_req = attempt_to_construct_permissions_change(f"Jira ticket: {jira_ticket}")
-        self.assertEquals(jira_ticket, user_req.manager_approval)
+        self.assertEqual(jira_ticket, user_req.manager_approval)
 
     # ... inside PermissionChangeTest(unittest.TestCase):
     def test_given_aws_account_in_request_then_account_is_extracted(self):
@@ -225,7 +225,7 @@ class VendorApprovalTest(unittest.TestCase):
     def test_given_no_pii_involved_then_pii_is_false(self):
         pii_involvement = "No PII involved"
         user_req = attempt_to_construct_vendor_approval(pii_involvement)
-        self.assertEquals(pii_involvement, user_req.data_classification)
+        self.assertEqual(pii_involvement, user_req.data_classification)
 
     def test_given_attestation_of_security_questionnaire_in_request_then_appropriate_field_is_set(
             self

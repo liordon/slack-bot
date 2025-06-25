@@ -29,7 +29,7 @@ class BasicRequestActionsCase(unittest.TestCase):
 
     def test_given_a_request_mandatory_fields_can_be_distinguished_from_non_mandatory(self):
         req = _FakeRequest('a', 0)
-        self.assertNotEquals(len(req.get_mandatory_fields()), len(req._field_details))
+        self.assertNotEqual(len(req.get_mandatory_fields()), len(req._field_details))
 
     def test_given_a_fully_assigned_request_there_are_no_missing_fields(self):
         req = _FakeRequest('a', 0)
